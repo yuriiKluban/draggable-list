@@ -2,9 +2,11 @@ import {Dimensions, Platform} from 'react-native';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
+const isIos = Platform.OS === 'ios';
 
 const COMPONENT_INITIALIZATION = 'COMPONENT_INITIALIZATION';
 const ON_DRAG_START = 'ON_DRAG_START';
+const ON_DRAG_ACTIVE = 'ON_DRAG_ACTIVE';
 const ON_DRAG_END = 'ON_DRAG_END';
 const UPDATE_SEQUENCE = 'UPDATE_SEQUENCE';
 
@@ -22,11 +24,13 @@ export default interface IDragListItem {
 }
 
 export {
+  isIos,
   SCREEN_WIDTH,
   SCREEN_HEIGHT,
   flatListDefMargin,
   COMPONENT_INITIALIZATION,
   ON_DRAG_START,
+  ON_DRAG_ACTIVE,
   ON_DRAG_END,
   UPDATE_SEQUENCE,
   MEASURE_TIMEOUT,

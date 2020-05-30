@@ -17,7 +17,9 @@ import Animated from 'react-native-reanimated';
 import IDragListItem, {
   COMPONENT_INITIALIZATION,
   flatListDefMargin,
+  isIos,
   MEASURE_TIMEOUT,
+  ON_DRAG_ACTIVE,
   ON_DRAG_END,
   ON_DRAG_START,
   UPDATE_SEQUENCE,
@@ -98,7 +100,7 @@ const DraggableListComponent = ({
       const yValue =
         listItemMeasurements[state.dragIndex === -1 ? 0 : state.dragIndex].y;
       translateX.setValue(xValue);
-      translateY.setValue(yValue);
+      translateY.setValue(isIos ? yValue : 0);
       onDragActive(x, 0);
     } else {
       if (isInListSize(y, listItemMeasurements, index, flatListHeight)) {
@@ -106,8 +108,8 @@ const DraggableListComponent = ({
           y + topOffset - itemsHeight[index] / 2 + flatListDefMargin;
         translateX.setValue(0);
         translateY.setValue(yValue);
+        onDragActive(0, y);
       }
-      onDragActive(0, y);
     }
   };
 
@@ -162,6 +164,7 @@ const DraggableListComponent = ({
   };
 
   const onDragActive = (x: number, y: number): void => {
+    !isIos && !state.dragging && dispatch({type: ON_DRAG_ACTIVE});
     if (!scroll) {
       const {width, height} = listItemMeasurements[state.dragIndex];
       if (horizontal) {

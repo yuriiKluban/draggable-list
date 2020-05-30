@@ -1,5 +1,7 @@
 import {
   COMPONENT_INITIALIZATION,
+  isIos,
+  ON_DRAG_ACTIVE,
   ON_DRAG_END,
   ON_DRAG_START,
   UPDATE_SEQUENCE,
@@ -29,7 +31,9 @@ export const reducer = (state: IState, {type, payload}: IAction): IState => {
     case COMPONENT_INITIALIZATION:
       return {...state, init: true, dataList: payload};
     case ON_DRAG_START:
-      return {...state, dragging: true, dragIndex: payload};
+      return {...state, dragging: isIos, dragIndex: payload};
+    case ON_DRAG_ACTIVE:
+      return {...state, dragging: true};
     case ON_DRAG_END:
       return {...state, dragging: false, dragIndex: -1};
     case UPDATE_SEQUENCE:
