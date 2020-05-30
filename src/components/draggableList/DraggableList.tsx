@@ -3,19 +3,25 @@ import React, {
   memo,
   ReactElement,
   useEffect,
+  useReducer,
   useRef,
-  useState,
 } from 'react';
 import {
-  Animated,
   FlatList,
   LayoutChangeEvent,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Platform,
   View,
 } from 'react-native';
-import IDragListItem, {flatListDefMargin} from '../../utils/constans';
+import Animated from 'react-native-reanimated';
+import IDragListItem, {
+  COMPONENT_INITIALIZATION,
+  flatListDefMargin,
+  MEASURE_TIMEOUT,
+  ON_DRAG_END,
+  ON_DRAG_START,
+  UPDATE_SEQUENCE,
+} from '../../utils/constans';
 import {
   GestureHandlerStateChangeNativeEvent,
   LongPressGestureHandler,
@@ -30,6 +36,7 @@ import {
   yToIndex,
 } from '../../utils/functions';
 import styles from './styles';
+import {initialState, reducer} from './reducer';
 
 interface Props {
   horizontal?: boolean;
@@ -45,30 +52,16 @@ const defaultProps: Props = {
   renderItem: () => <></>,
   keyExtractor: (item: any, index: number) => `${index}`,
 };
-interface IState {
-  dragging: boolean;
-  dragIndex: number;
-  dataList: any[];
-  init: boolean;
-}
-const defaultState: IState = {
-  dragging: false,
-  dragIndex: -1,
-  dataList: [],
-  init: false,
-};
 
-let translate: Animated.ValueXY = new Animated.ValueXY({x: 0, y: 0});
+const {Value} = Animated;
+
+let translateX: Animated.Value<number> = new Value(0);
+let translateY: Animated.Value<number> = new Value(0);
 let listItemRefs: {[x: string]: any} = {};
 let measureTimeouts: {[x: string]: number} = {};
 let listItemMeasurements: {
   [x: string]: {x: number; y: number; width: number; height: number};
 } = {};
-
-const MEASURE_TIMEOUT = Platform.select({
-  android: 300,
-  ios: 100,
-});
 
 let scroll: boolean = false;
 let flatListWidth: number = 0;
@@ -88,12 +81,12 @@ const DraggableListComponent = ({
   ItemSeparatorComponent,
   horizontal,
 }: Props): ReactElement => {
-  const [state, setState] = useState<IState>(defaultState);
+  const [state, dispatch] = useReducer(reducer, initialState);
   const listRef = useRef<FlatList<IDragListItem>>(null);
   const containerListRef = useRef<View>(null);
 
   useEffect(() => {
-    setState({...state, init: true, dataList: data});
+    dispatch({type: COMPONENT_INITIALIZATION, payload: data});
   }, []);
 
   const onGestureEvent = (event: LongPressGestureHandlerGestureEvent): void => {
@@ -104,16 +97,15 @@ const DraggableListComponent = ({
       const xValue = x - itemsWidth[index] / 2;
       const yValue =
         listItemMeasurements[state.dragIndex === -1 ? 0 : state.dragIndex].y;
-      translate.setValue({x: xValue, y: yValue});
+      translateX.setValue(xValue);
+      translateY.setValue(yValue);
       onDragActive(x, 0);
     } else {
       if (isInListSize(y, listItemMeasurements, index, flatListHeight)) {
         const yValue =
           y + topOffset - itemsHeight[index] / 2 + flatListDefMargin;
-        translate.setValue({
-          x: 0,
-          y: yValue,
-        });
+        translateX.setValue(0);
+        translateY.setValue(yValue);
       }
       onDragActive(0, y);
     }
@@ -165,7 +157,7 @@ const DraggableListComponent = ({
       );
     }
     if (itemIndex !== -1 && !state.dragging) {
-      setState({...state, dragging: true, dragIndex: itemIndex});
+      dispatch({type: ON_DRAG_START, payload: itemIndex});
     }
   };
 
@@ -194,15 +186,16 @@ const DraggableListComponent = ({
     } else {
       scroll = false;
     }
-    updateOrder(x, y);
+    updateSequence(x, y);
   };
 
   const onDragEnd = (): void => {
-    translate.setValue({x: 0, y: 0});
-    setState({...state, dragIndex: -1, dragging: false});
+    translateX.setValue(0);
+    translateY.setValue(0);
+    dispatch({type: ON_DRAG_END});
   };
 
-  const updateOrder = (x: number, y: number): void => {
+  const updateSequence = (x: number, y: number): void => {
     const {dragIndex, dataList} = state;
     const index = dragIndex !== -1 ? dragIndex : 0;
     let newIndex: number;
@@ -225,7 +218,7 @@ const DraggableListComponent = ({
     }
     if (newIndex !== -1 && newIndex !== dragIndex) {
       const newData = [...swapArrayElements(dataList, dragIndex, newIndex)];
-      setState({...state, dataList: newData, dragIndex: newIndex});
+      dispatch({type: UPDATE_SEQUENCE, payload: {newData, newIndex}});
     }
   };
 
@@ -234,7 +227,7 @@ const DraggableListComponent = ({
     if (scroll && ref) {
       requestAnimationFrame(() => {
         ref.scrollToOffset({
-          animated: false,
+          animated: true,
           offset: direction,
         });
       });
@@ -320,7 +313,7 @@ const DraggableListComponent = ({
       ...styles.dragWrapper,
       height,
       width,
-      transform: [...translate.getTranslateTransform()],
+      transform: [{translateX}, {translateY}],
     };
     return (
       <Animated.View
@@ -391,6 +384,8 @@ const DraggableListComponent = ({
             onLayout={onLayoutList}
             initialNumToRender={dataList.length}
             windowSize={15}
+            showsVerticalScrollIndicator={false}
+            showsHorizontalScrollIndicator={false}
           />
         </View>
       </LongPressGestureHandler>

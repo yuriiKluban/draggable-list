@@ -7,18 +7,13 @@ export interface Style {
 }
 
 const styles = StyleSheet.create<Style>({
-  container: {
-    // flex: 1,
-  },
+  container: {},
   dragWrapper: {
     position: 'absolute',
     left: 0,
     top: 0,
-    // justifyContent: 'center',
-    // alignItems: 'center',
   },
   emptyWrapper: {
-    // width: '100%',
     backgroundColor: 'white',
   },
 });

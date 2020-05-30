@@ -1,21 +1,10 @@
 import React, {ReactElement} from 'react';
-import {
-  SafeAreaView,
-  StyleSheet,
-  View,
-  Text,
-  StatusBar,
-  Alert,
-} from 'react-native';
+import {SafeAreaView, StyleSheet, View, Text, StatusBar} from 'react-native';
 import DraggableList from './src/components/draggableList/DraggableList';
 import IDragListItem from './src/utils/constans';
 import {exampleData} from './src/utils/functions';
 
 const App = (): ReactElement => {
-  const onItemPress = (): void => {
-    Alert.alert('You click on item');
-  };
-
   const renderItem = ({item}: {item: IDragListItem}): ReactElement => {
     return (
       <View
@@ -36,11 +25,11 @@ const App = (): ReactElement => {
       <StatusBar barStyle="dark-content" />
       <SafeAreaView style={styles.flex}>
         <DraggableList
+          horizontal={true}
           data={exampleData}
           renderItem={renderItem}
           ItemSeparatorComponent={renderSeparator}
           keyExtractor={keyExtractor}
-          onItemPress={onItemPress}
         />
       </SafeAreaView>
     </>
@@ -52,7 +41,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   separator: {
-    // width: '100%',
     height: 2,
     backgroundColor: 'white',
   },
