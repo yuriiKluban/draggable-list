@@ -22,22 +22,26 @@ import {
   LongPressGestureHandlerEventExtra,
   LongPressGestureHandlerGestureEvent,
   State,
-  TapGestureHandler,
-  TapGestureHandlerStateChangeEvent,
 } from 'react-native-gesture-handler';
-import {isInListSize, swapArrayElements, yToIndex} from '../../utils/functions';
+import {
+  isInListSize,
+  swapArrayElements,
+  xToIndex,
+  yToIndex,
+} from '../../utils/functions';
 import styles from './styles';
 
 interface Props {
+  horizontal?: boolean;
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   data: any[];
   renderItem: any;
   keyExtractor: (item: any, index: number) => string;
   ItemSeparatorComponent?: ComponentType<any> | null;
-  onItemPress?: (item: any) => void;
 }
 const defaultProps: Props = {
   data: [],
+  horizontal: false,
   renderItem: () => <></>,
   keyExtractor: (item: any, index: number) => `${index}`,
 };
@@ -67,10 +71,13 @@ const MEASURE_TIMEOUT = Platform.select({
 });
 
 let scroll: boolean = false;
+let flatListWidth: number = 0;
 let flatListHeight: number = 0;
 let scrollOffset: number = 0;
 let topOffset: number = 0;
+let separatorWidth: number = 0;
 let separatorHeight: number = 0;
+let itemsWidth: any = {};
 let itemsHeight: any = {};
 
 const DraggableListComponent = ({
@@ -79,7 +86,7 @@ const DraggableListComponent = ({
   renderItem,
   keyExtractor,
   ItemSeparatorComponent,
-  onItemPress,
+  horizontal,
 }: Props): ReactElement => {
   const [state, setState] = useState<IState>(defaultState);
   const listRef = useRef<FlatList<IDragListItem>>(null);
@@ -90,15 +97,26 @@ const DraggableListComponent = ({
   }, []);
 
   const onGestureEvent = (event: LongPressGestureHandlerGestureEvent): void => {
-    const {y} = event.nativeEvent;
+    const {x, y} = event.nativeEvent;
     const {dragIndex} = state;
-    const x: number = 0;
     const index = dragIndex !== -1 ? dragIndex : 0;
-    if (isInListSize(y, listItemMeasurements, index, flatListHeight)) {
-      const yValue = y + topOffset - itemsHeight[index] / 2 + flatListDefMargin;
-      translate.setValue({x, y: yValue});
+    if (horizontal) {
+      const xValue = x - itemsWidth[index] / 2;
+      const yValue =
+        listItemMeasurements[state.dragIndex === -1 ? 0 : state.dragIndex].y;
+      translate.setValue({x: xValue, y: yValue});
+      onDragActive(x, 0);
+    } else {
+      if (isInListSize(y, listItemMeasurements, index, flatListHeight)) {
+        const yValue =
+          y + topOffset - itemsHeight[index] / 2 + flatListDefMargin;
+        translate.setValue({
+          x: 0,
+          y: yValue,
+        });
+      }
+      onDragActive(0, y);
     }
-    onDragActive(x, y);
   };
 
   const onHandlerStateChange = ({
@@ -121,28 +139,31 @@ const DraggableListComponent = ({
     }
   };
 
-  const onSingleTap = (
-    event: TapGestureHandlerStateChangeEvent,
-    item: any,
-  ): void => {
-    if (event.nativeEvent.state === State.ACTIVE) {
-      onItemPress && onItemPress(item);
-    }
-  };
-
   const onDragStart = (
     nativeEvent: GestureHandlerStateChangeNativeEvent &
       LongPressGestureHandlerEventExtra,
   ): void => {
-    const {y} = nativeEvent;
-    const itemIndex = yToIndex(
-      y,
-      state.dataList.length,
-      scrollOffset,
-      topOffset,
-      listItemMeasurements[state.dragIndex === -1 ? 0 : state.dragIndex].height,
-      separatorHeight,
-    );
+    const {x, y} = nativeEvent;
+    let itemIndex: number;
+    if (horizontal) {
+      itemIndex = xToIndex(
+        x,
+        state.dataList.length,
+        scrollOffset,
+        listItemMeasurements[state.dragIndex === -1 ? 0 : state.dragIndex]
+          .width,
+        separatorWidth,
+      );
+    } else {
+      itemIndex = yToIndex(
+        y,
+        state.dataList.length,
+        scrollOffset,
+        listItemMeasurements[state.dragIndex === -1 ? 0 : state.dragIndex]
+          .height,
+        separatorHeight,
+      );
+    }
     if (itemIndex !== -1 && !state.dragging) {
       setState({...state, dragging: true, dragIndex: itemIndex});
     }
@@ -150,14 +171,25 @@ const DraggableListComponent = ({
 
   const onDragActive = (x: number, y: number): void => {
     if (!scroll) {
-      const {height} = listItemMeasurements[state.dragIndex];
-      if (y + height > flatListHeight) {
-        scroll = true;
-        moveList(y);
-      }
-      if (y < height && scrollOffset) {
-        scroll = true;
-        moveList(y);
+      const {width, height} = listItemMeasurements[state.dragIndex];
+      if (horizontal) {
+        if (x + width > flatListWidth) {
+          scroll = true;
+          moveList(x);
+        }
+        if (x < width && scrollOffset) {
+          scroll = true;
+          moveList(x);
+        }
+      } else {
+        if (y + height > flatListHeight) {
+          scroll = true;
+          moveList(y);
+        }
+        if (y < height && scrollOffset) {
+          scroll = true;
+          moveList(y);
+        }
       }
     } else {
       scroll = false;
@@ -173,28 +205,37 @@ const DraggableListComponent = ({
   const updateOrder = (x: number, y: number): void => {
     const {dragIndex, dataList} = state;
     const index = dragIndex !== -1 ? dragIndex : 0;
-    const newIndex = yToIndex(
-      y,
-      state.dataList.length,
-      scrollOffset,
-      topOffset,
-      listItemMeasurements[index].height,
-      separatorHeight,
-    );
+    let newIndex: number;
+    if (horizontal) {
+      newIndex = xToIndex(
+        x,
+        state.dataList.length,
+        scrollOffset,
+        listItemMeasurements[index].width,
+        separatorWidth,
+      );
+    } else {
+      newIndex = yToIndex(
+        y,
+        state.dataList.length,
+        scrollOffset,
+        listItemMeasurements[index].height,
+        separatorHeight,
+      );
+    }
     if (newIndex !== -1 && newIndex !== dragIndex) {
       const newData = [...swapArrayElements(dataList, dragIndex, newIndex)];
-      console.log(newData);
       setState({...state, dataList: newData, dragIndex: newIndex});
     }
   };
 
-  const moveList = (y: number): void => {
+  const moveList = (direction: number): void => {
     const ref = listRef.current;
     if (scroll && ref) {
       requestAnimationFrame(() => {
         ref.scrollToOffset({
-          animated: true,
-          offset: y,
+          animated: false,
+          offset: direction,
         });
       });
     }
@@ -236,17 +277,25 @@ const DraggableListComponent = ({
     itemKeys.forEach(measureListItem);
   };
 
-  const onLayoutList = (event: LayoutChangeEvent): number =>
-    (flatListHeight = event.nativeEvent.layout.height);
+  const onLayoutList = (event: LayoutChangeEvent): void => {
+    const {width, height} = event.nativeEvent.layout;
+    horizontal ? (flatListWidth = width) : (flatListHeight = height);
+  };
 
   const onLayoutSeparator = (event: LayoutChangeEvent): void => {
-    if (!separatorHeight) {
-      separatorHeight = event.nativeEvent.layout.height;
+    const {width, height} = event.nativeEvent.layout;
+    if (!separatorWidth && horizontal) {
+      separatorWidth = width;
+    }
+    if (!separatorHeight && !horizontal) {
+      separatorHeight = height;
     }
   };
 
-  const onListItemLayout = (event: LayoutChangeEvent, index: number): number =>
-    (itemsHeight[index] = event.nativeEvent.layout.height);
+  const onListItemLayout = (event: LayoutChangeEvent, index: number): void => {
+    const {width, height} = event.nativeEvent.layout;
+    horizontal ? (itemsWidth[index] = width) : (itemsHeight[index] = height);
+  };
 
   const onContainerLayout = (): void => {
     containerListRef.current &&
@@ -258,7 +307,8 @@ const DraggableListComponent = ({
   const onScrollHandler = (
     event: NativeSyntheticEvent<NativeScrollEvent>,
   ): void => {
-    scrollOffset = event.nativeEvent.contentOffset.y;
+    const {x, y} = event.nativeEvent.contentOffset;
+    horizontal ? (scrollOffset = x) : (scrollOffset = y);
     onScroll && onScroll(event);
   };
 
@@ -290,24 +340,21 @@ const DraggableListComponent = ({
     index: number;
   }): ReactElement => {
     return (
-      <TapGestureHandler
-        onHandlerStateChange={(event) => onSingleTap(event, item)}>
-        <View
-          onLayout={(event) => onListItemLayout(event, index)}
-          ref={setListItemRef(`${index}`)}
-          collapsable={false}>
-          {state.dragging && state.dragIndex === index ? (
-            <View
-              style={{
-                ...styles.emptyWrapper,
-                height: itemsHeight[state.dragIndex],
-              }}
-            />
-          ) : (
-            renderItem({item, index})
-          )}
-        </View>
-      </TapGestureHandler>
+      <View
+        onLayout={(event) => onListItemLayout(event, index)}
+        ref={setListItemRef(`${index}`)}>
+        {state.dragging && state.dragIndex === index ? (
+          <View
+            style={{
+              ...styles.emptyWrapper,
+              width: itemsWidth[state.dragIndex],
+              height: itemsHeight[state.dragIndex],
+            }}
+          />
+        ) : (
+          renderItem({item, index})
+        )}
+      </View>
     );
   };
 
@@ -316,12 +363,6 @@ const DraggableListComponent = ({
       {ItemSeparatorComponent && <ItemSeparatorComponent />}
     </View>
   );
-
-  const getItemLayout = (data: any, index: number) => ({
-    length: itemsHeight[index],
-    offset: itemsHeight[index] * index,
-    index,
-  });
 
   const {dragging, dataList, init} = state;
   if (!init) return <></>;
@@ -338,6 +379,7 @@ const DraggableListComponent = ({
           onLayout={onContainerLayout}
           style={styles.container}>
           <FlatList
+            horizontal={horizontal}
             onScroll={onScrollHandler}
             ref={listRef}
             data={dataList}
@@ -348,8 +390,7 @@ const DraggableListComponent = ({
             onMomentumScrollEnd={measureAll}
             onLayout={onLayoutList}
             initialNumToRender={dataList.length}
-            windowSize={11}
-            getItemLayout={getItemLayout}
+            windowSize={15}
           />
         </View>
       </LongPressGestureHandler>

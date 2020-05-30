@@ -1,4 +1,4 @@
-import {flatListDefMargin} from './constans';
+import IDragListItem, {flatListDefMargin} from './constans';
 
 const getRandomColor = (): string => {
   const letters = '0123456789ABCDEF';
@@ -19,11 +19,22 @@ const swapArrayElements = <T>(
   return arr;
 };
 
+const xToIndex = (
+  x: number,
+  listSize: number,
+  scrollOffset: number,
+  rowWidth: number,
+  separatorWidth: number,
+): number =>
+  Math.min(
+    listSize - 1,
+    Math.max(0, Math.floor((x + scrollOffset) / (rowWidth + separatorWidth))),
+  );
+
 const yToIndex = (
   y: number,
   listSize: number,
   scrollOffset: number,
-  topOffset: number,
   rowHeight: number,
   separatorHeight: number,
 ): number =>
@@ -66,4 +77,19 @@ const isInListSize = (
   getMinTranslate(y, listItemMeasurements, index) &&
   getMaxTranslate(y, listItemMeasurements, index, flatListHeight);
 
-export {swapArrayElements, yToIndex, getRandomColor, isInListSize};
+const exampleData: IDragListItem[] = [...Array(20)].map(
+  (d: IDragListItem, index) => ({
+    id: `item-${index}`,
+    value: index + 1,
+    backgroundColor: getRandomColor(),
+  }),
+);
+
+export {
+  swapArrayElements,
+  xToIndex,
+  yToIndex,
+  getRandomColor,
+  isInListSize,
+  exampleData,
+};

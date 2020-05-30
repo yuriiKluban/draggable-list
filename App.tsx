@@ -8,7 +8,8 @@ import {
   Alert,
 } from 'react-native';
 import DraggableList from './src/components/draggableList/DraggableList';
-import IDragListItem, {exampleData} from './src/utils/constans';
+import IDragListItem from './src/utils/constans';
+import {exampleData} from './src/utils/functions';
 
 const App = (): ReactElement => {
   const onItemPress = (): void => {
@@ -51,13 +52,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   separator: {
-    width: '100%',
+    // width: '100%',
     height: 2,
     backgroundColor: 'white',
   },
   listItemWrapper: {
-    width: '100%',
-    height: 80,
+    // width: '100%',
+    width: 80,
+    height: 120,
     justifyContent: 'center',
     alignItems: 'center',
   },
